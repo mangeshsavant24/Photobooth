@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Polaroid Photo Booth - Vertical Strip</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      text-align: center;
+      background: url('v729-noon-4a.jpg') no-repeat center center fixed;
+      background-size: cover;
+      color: white;
+      margin: 0;
+      padding: 20px;
+    }
+
+    video, canvas {
+      border-radius: 10px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.6);
+      width: 100%;
+      max-width: 600px;
+    }
+
+    .filters, .controls {
+      margin-top: 10px;
+    }
+
+    button, select, input {
+      background: hsla(352, 100%, 74%, 0.251);
+      color: #fbfbfb;
+      border: none;
+      padding: 10px;
+      border-radius: 8px;
+      margin: 5px;
+      font-size: 1rem;
+      cursor: pointer;
+    }
+
+    input[type="text"] {
+      width: 200px;
+    }
+
+    .polaroid-strip {
+      background: url('v729-noon-4a.jpg') no-repeat center center fixed;
+      background-size: cover;
+      color: white;
+      margin: 0;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      align-items: center;
+      margin-top: 20px;
+    }
+
+    .polaroid-strip.bokeh {
+      background: url('1600w-aWWISmI4pVI.webp') no-repeat center center;
+      background-size: cover;
+    }
+
+    .polaroid-strip.wood {
+      background: url('ch.png') no-repeat center center;
+      background-size: cover;
+    }
+
+    .polaroid-strip.gradient {
+      background: linear-gradient(135deg, #ce8ae9, #ffffff);
+    }
+
+    .polaroid {
+      background: white;
+      padding: 10px;
+      border: 1px solid #fbfafa;
+      border-radius: 5px;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.5);
+      transition: transform 0.3s, box-shadow 0.3s;
+    }
+
+    .polaroid:hover {
+      transform: scale(1.05);
+    }
+
+    .polaroid img {
+      display: block;
+      max-width: 150px;
+      margin-bottom: 5px;
+      border-radius: 8px;
+    }
+
+    .polaroid p {
+      margin: 0;
+      font-size: 0.9rem;
+      color: #ffffff;
+    }
+
+    .strip-preview {
+      margin-top: 30px;
+      display: flex;
+      justify-content: center;
+      background: rgba(255, 255, 255, 0.05);
+      padding: 20px;
+      border-radius: 12px;
+    }
+
+    .strip-preview img {
+      max-height: 500px;
+      border-radius: 10px;
+      box-shadow: 0 0 12px rgba(0,0,0,0.6);
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Photo Booth</h1>
+
+  <video id="video" autoplay playsinline></video>
+  <canvas id="canvas" style="display:none;"></canvas>
+
+  <div class="filters">
+    <label for="filter">Filter:</label>
+    <select id="filter">
+      <option value="none">Normal</option>
+      <option value="grayscale(100%)">Grayscale</option>
+      <option value="sepia(100%)">Sepia</option>
+      <option value="invert(100%)">Invert</option>
+      <option value="contrast(200%)">High Contrast</option>
+      <option value="brightness(150%)">Brighten</option>
+      <option value="blur(2px) brightness(120%)">Blur + Bright</option>
+      <option value="saturate(300%)">Saturate Boost</option>
+      <option value="hue-rotate(90deg)">Hue Rotate</option>
+    </select>
+  </div>
+
+  <div class="controls">
+    <input type="text" id="caption" placeholder="Enter caption...">
+    
+    <label for="font">Font:</label>
+    <select id="font">
+      <option value="Arial, sans-serif">Arial</option>
+      <option value="'Courier New', monospace">Courier New</option>
+      <option value="'Times New Roman', serif">Times New Roman</option>
+      <option value="'Comic Sans MS', cursive">Comic Sans</option>
+      <option value="Georgia, serif">Georgia</option>
+    </select>
+
+    <label for="background">Background:</label>
+    <select id="background">
+      <option value="default">Default</option>
+      <option value="bokeh">Bokeh</option>
+      <option value="wood">Wood</option>
+      <option value="gradient">Gradient</option>
+    </select>
+
+    <button id="capture">Capture Photo</button>
+    <button id="clear-strip">Clear Strip</button>
+    <button id="download-strip">Download Strip</button>
+  </div>
+
+  <div id="polaroid-strip" class="polaroid-strip"></div>
+
+  <h2>Strip Preview</h2>
+  <div id="strip-preview" class="strip-preview"></div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script>
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('canvas');
+    const filterSelect = document.getElementById('filter');
+    const captionInput = document.getElementById('caption');
+    const fontSelect = document.getElementById('font');
+    const captureBtn = document.getElementById('capture');
+    const clearStripBtn = document.getElementById('clear-strip');
+    const downloadStripBtn = document.getElementById('download-strip');
+    const polaroidStrip = document.getElementById('polaroid-strip');
+    const stripPreview = document.getElementById('strip-preview');
+    const backgroundSelect = document.getElementById('background');
+
+    let currentFilter = 'none';
+
+    navigator.mediaDevices.getUserMedia({ video: true })
+      .then(stream => {
+        video.srcObject = stream;
+      })
+      .catch(err => alert('Camera access denied: ' + err.message));
+
+    filterSelect.addEventListener('change', () => {
+      currentFilter = filterSelect.value;
+      video.style.filter = currentFilter;
+    });
+
+    backgroundSelect.addEventListener('change', () => {
+      const selected = backgroundSelect.value;
+      polaroidStrip.classList.remove('bokeh', 'wood', 'gradient');
+      if (selected !== 'default') {
+        polaroidStrip.classList.add(selected);
+      }
+    });
+
+    captureBtn.addEventListener('click', () => {
+      const context = canvas.getContext('2d');
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+
+      context.filter = currentFilter;
+      context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+      const polaroid = document.createElement('div');
+      polaroid.className = 'polaroid';
+
+      const img = document.createElement('img');
+      img.src = canvas.toDataURL('image/png');
+
+      const caption = document.createElement('p');
+      caption.textContent = captionInput.value.trim() || 'My Polaroid';
+      caption.style.fontFamily = fontSelect.value;
+
+      polaroid.appendChild(img);
+      polaroid.appendChild(caption);
+      polaroidStrip.appendChild(polaroid);
+
+      captionInput.value = '';
+    });
+
+    clearStripBtn.addEventListener('click', () => {
+      polaroidStrip.innerHTML = '';
+      stripPreview.innerHTML = '';
+    });
+
+    downloadStripBtn.addEventListener('click', () => {
+      html2canvas(polaroidStrip, {
+        backgroundColor: null
+      }).then(canvas => {
+        stripPreview.innerHTML = '';
+        const previewImg = document.createElement('img');
+        previewImg.src = canvas.toDataURL('image/png');
+        stripPreview.appendChild(previewImg);
+
+        const link = document.createElement('a');
+        link.download = 'polaroid-strip.png';
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+      });
+    });
+  </script>
+
+</body>
+</html>
